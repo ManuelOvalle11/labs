@@ -1,0 +1,83 @@
+/*
+ * Contador_8_bits_enC.c
+ *
+ * Created: 9/04/2024 22:34:58
+ * Author : Ovall
+ */ 
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdbool.h>
+
+#define F_CPU 16000000UL // Frecuencia del microcontrolador en Hz
+#define NUM_BITS 8
+
+// Estructura para representar el contador binario
+struct BinaryCounter {
+	uint8_t value;
+	
+};
+
+// Función para mostrar el estado actual del contador en los LEDs
+void displayBinaryCounter(struct BinaryCounter counter) {
+	PORTD = counter.value; // Mostrar el valor del contador en los LEDs conectados al puerto D
+}
+
+int main() {
+	// Configurar el puerto D como salida para los LEDs
+	DDRD = 0xFF;
+
+	// Configurar los pines de los botones como entradas
+	DDRC &= ~(1 << DDC0); // Pin C0 como entrada (botón de incremento)
+	DDRC &= ~(1 << DDC1); // Pin C1 como entrada (botón de decremento)
+
+	// Habilitar resistencias de pull-up internas para los botones
+	PORTC |= (1 << PORTC0); // Habilitar resistencia de pull-up para el pin C0
+	PORTC |= (1 << PORTC1); // Habilitar resistencia de pull-up para el pin C1
+
+	// Deshabilitar la funcionalidad de los pines RX y TX (PD0 y PD1)
+	UCSR0B = 0x00;
+	PORTD = 0;
+
+	// Inicialización del contador binario
+	struct BinaryCounter binaryCounter = {0};
+
+	// Variables para controlar el estado anterior de los botones
+	bool prevIncreaseButtonState = true;
+	bool prevDecreaseButtonState = true;
+
+	while (1) {
+		// Leer el estado de los botones
+		bool increaseButton = !(PINC & (1 << PC0)); // Estado del botón de incremento (activo bajo)
+		bool decreaseButton = !(PINC & (1 << PC1)); // Estado del botón de decremento (activo bajo)
+
+		// Verificar si el botón de incremento ha sido presionado y estaba previamente en estado alto
+		if (increaseButton && prevIncreaseButtonState) {
+			binaryCounter.value++;
+			if (binaryCounter.value == (1 << NUM_BITS)) { // Reiniciar el contador si se llega al máximo de 8 bits
+				binaryCounter.value = 0;
+			}
+			displayBinaryCounter(binaryCounter);
+			prevIncreaseButtonState = false; // Actualizar el estado del botón de incremento
+		}
+		else if (!increaseButton) {
+			prevIncreaseButtonState = true; // Restablecer el estado del botón de incremento si ya no está presionado
+		}
+
+		// Verificar si el botón de decremento ha sido presionado y estaba previamente en estado alto
+		if (decreaseButton && prevDecreaseButtonState) {
+			if (binaryCounter.value == 0) { // Pasar al máximo de 8 bits si el contador está en 0
+				binaryCounter.value = (1 << NUM_BITS) - 1;
+				} else {
+				binaryCounter.value--;
+			}
+			displayBinaryCounter(binaryCounter);
+			prevDecreaseButtonState = false; // Actualizar el estado del botón de decremento
+		}
+		else if (!decreaseButton) {
+			prevDecreaseButtonState = true; // Restablecer el estado del botón de decremento si ya no está presionado
+		}
+	}
+
+	return 0;
+}
